@@ -1,0 +1,141 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum AccessType {
+  SUPER_ADMIN
+  ADMIN
+  SUB_ADMIN
+}
+
+enum LoanStatus {
+  PENDING
+  ACTIVE
+  CLOSED
+  DEFAULT
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  OVERDUE
+}
+
+enum LogActionType {
+  CREATE_USER
+  UPDATE_USER
+  DEACTIVATE_USER
+  CREATE_LOAN
+  UPDATE_LOAN_STATUS
+  RECORD_PAYMENT
+  UPDATE_INTEREST_RATES
+  EXPORT_DATA
+  SMS_BROADCAST
+}
+
+model User {
+  id                Int        @id @default(autoincrement())
+  email             String     @unique
+  passwordHash      String
+  fullName          String
+  mobileNo          String
+  accessType        AccessType @default(SUB_ADMIN)
+  department        String     @default("Operations")
+  permissions       String[]   @default([])
+  isActive          Boolean    @default(true)
+  loginCount        Int        @default(0)
+  lastLogin         DateTime?
+  twoFactorEnabled  Boolean    @default(false)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  loans             Loan[]
+  auditLogs         AuditLog[]
+
+  @@map("users")
+}
+
+model Loan {
+  id                Int        @id @default(autoincrement())
+  userId            Int?
+  user              User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  customerName      String
+  customerMobile    String
+  mobileVerified    Boolean    @default(false)
+  verificationToken String?
+  amount            Decimal    @db.Decimal(12, 2)
+  durationMonths    Int
+  interestRate      Decimal    @db.Decimal(5, 2)
+  emiAmount         Decimal    @db.Decimal(12, 2)
+  totalAmount       Decimal    @db.Decimal(12, 2)
+  startDate         DateTime   @db.Date
+  endDate           DateTime   @db.Date
+  status            LoanStatus @default(PENDING)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  payments          Payment[]
+  smsLogs           SmsLog[]
+
+  @@index([status])
+  @@index([customerMobile])
+  @@map("loans")
+}
+
+model Payment {
+  id          Int           @id @default(autoincrement())
+  loanId      Int
+  loan        Loan          @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  installment Int
+  dueDate     DateTime      @db.Date
+  amount      Decimal       @db.Decimal(12, 2)
+  paidDate    DateTime?     @db.Date
+  status      PaymentStatus @default(PENDING)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@unique([loanId, installment])
+  @@index([status])
+  @@index([dueDate])
+  @@map("payments")
+}
+
+model SmsLog {
+  id             Int      @id @default(autoincrement())
+  loanId         Int?
+  loan           Loan?    @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  customerMobile String
+  messageContent String
+  status         String   // "SENT" | "FAILED"
+  sentAt         DateTime @default(now())
+
+  @@map("sms_logs")
+}
+
+model InterestRate {
+  id             Int      @id @default(autoincrement())
+  durationMonths Int      @unique
+  interestRate   Decimal  @db.Decimal(5, 2)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("interest_rates")
+}
+
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  userId     Int?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action     String
+  entityType String   // "loan" | "payment" | "user" | "config"
+  entityId   Int?
+  details    Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@map("audit_logs")
+}

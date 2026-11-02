@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Cloudflare Tunnel Frontend Test</title>
+  <style>
+    body { font-family: sans-serif; padding: 2rem; background: #0d0d1a; color: white; }
+    #result { background: #1a1a2e; padding: 1rem; border-radius: 8px; font-family: monospace; }
+    .success { color: #00ff00; }
+    .error { color: #ff4444; }
+  </style>
+</head>
+<body>
+  <h1>Frontend API Integration Test</h1>
+  <p>Testing connection to Cloudflare Tunnel URL via CORS...</p>
+  <div id="result">Fetching...</div>
+
+  <script>
+    const API_URL = "https://picks-complement-legitimate-muscle.trycloudflare.com";
+    
+    async function testAPI() {
+      const resultDiv = document.getElementById('result');
+      try {
+        const response = await fetch(`${API_URL}/api/health`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': 'lntrack-dev-api-key-change-in-prod'
+          }
+        });
+        
+        if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+        const data = await response.json();
+        
+        resultDiv.innerHTML = `
+          <h2 class="success">✅ Integration Successful!</h2>
+          <p><strong>CORS Status:</strong> Passed</p>
+          <p><strong>Response Data:</strong></p>
+          <pre>${JSON.stringify(data, null, 2)}</pre>
+        `;
+      } catch (err) {
+        resultDiv.innerHTML = `
+          <h2 class="error">❌ Integration Failed</h2>
+          <p>${err.message}</p>
+        `;
+      }
+    }
+    
+    testAPI();
+  </script>
+</body>
+</html>
